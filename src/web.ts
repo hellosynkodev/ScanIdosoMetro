@@ -45,17 +45,28 @@ let previousFrame: ImageData | null = null;
 
 async function iniciarCamera() {
   try {
-    const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+    const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
     video.srcObject = stream;
+
+    video.addEventListener("loadedmetadata", () => {
+      overlay.width = video.videoWidth;
+      overlay.height = video.videoHeight;
+      motionCanvas.width = video.videoWidth;
+      motionCanvas.height = video.videoHeight;
+
+      video.style.width = "100%";
+      video.style.height = "auto";
+
+      setInterval(detectarMovimento, 200);
+    });
+
     await video.play();
     output.innerHTML += `<p>Câmera ativada com sucesso</p>`;
 
-    overlay.width = video.videoWidth;
-    overlay.height = video.videoHeight;
-    motionCanvas.width = video.videoWidth;
-    motionCanvas.height = video.videoHeight;
-
-    setInterval(detectarMovimento, 200);
+    window.addEventListener("resize", () => {
+      overlay.width = video.videoWidth;
+      overlay.height = video.videoHeight;
+    });
   } catch (err) {
     output.innerHTML += `<p style='color:red;'>Erro ao acessar a câmera: ${err}</p>`;
   }
