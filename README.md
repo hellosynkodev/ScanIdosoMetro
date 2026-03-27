@@ -10,17 +10,25 @@ Projeto simples para simular scanner automático de documento na fila prioritár
 npm install
 ```
 
-2. Executar em modo dev (diretamente TS):
+2. Compilar TypeScript:
 
 ```bash
-npm run dev
+npm run build
 ```
 
-3. Executar build + node:
+3. Abrir interface web (servidor local):
 
 ```bash
-npm run start
+npm run serve
 ```
+
+4. Abrir o navegador em `http://localhost:3000` e permitir acesso à câmera.
+
+### Uso da câmera + OCR
+
+- Clique em "Capturar e verificar cartão" para tirar foto do documento mostrado na webcam.
+- O texto da imagem é reconhecido com `tesseract.js` e validado via regra de idade >= 60 e validade do cartão.
+- Resultado aparece na área de output.
 
 ## Regras de validação
 

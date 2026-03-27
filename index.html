@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Scan Idoso Metro</title>
+    <style>
+      body {
+        font-family: Arial, Helvetica, sans-serif;
+        margin: 20px;
+      }
+      video {
+        width: 100%;
+        max-width: 480px;
+        border: 1px solid #ccc;
+      }
+      button {
+        margin-top: 10px;
+        padding: 10px 20px;
+      }
+      #output pre {
+        background: #f8f8f8;
+        padding: 8px;
+        border: 1px solid #ddd;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Scan Idoso Metro (camera + OCR)</h1>
+    <video id="video" autoplay muted playsinline></video>
+    <br />
+    <button id="btnCapture">Capturar e verificar cartão</button>
+    <div id="output"></div>
+    <script src="dist/web.js"></script>
+  </body>
+</html>
