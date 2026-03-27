@@ -49,6 +49,33 @@ async function iniciarCamera() {
   }
 }
 
+function aplicarPreProcessamento(canvas: HTMLCanvasElement): HTMLCanvasElement {
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return canvas;
+
+  const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+  const dados = imageData.data;
+  for (let i = 0; i < dados.length; i += 4) {
+    const r = dados[i];
+    const g = dados[i + 1];
+    const b = dados[i + 2];
+
+    // converte para escala de cinza
+    const cinza = (r + g + b) / 3;
+
+    // aumenta contraste simples
+    const fator = 1.4;
+    const offset = 128 * (1 - fator);
+    const contraste = fator * cinza + offset;
+
+    const valor = Math.max(0, Math.min(255, contraste));
+    dados[i] = dados[i + 1] = dados[i + 2] = valor;
+  }
+
+  ctx.putImageData(imageData, 0, 0);
+  return canvas;
+}
+
 btnCapture.addEventListener("click", async () => {
   const canvas = document.createElement("canvas");
   canvas.width = video.videoWidth;
@@ -57,8 +84,9 @@ btnCapture.addEventListener("click", async () => {
   if (!ctx) return;
 
   ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+  aplicarPreProcessamento(canvas);
 
-  output.innerHTML += `<p>Processando imagem...</p>`;
+  output.innerHTML += `<p>Processando imagem (preprocessada)...</p>`;
   const result = await Tesseract.recognize(canvas, "por", {
     logger: (m) => {
       if (m.status === "recognizing text") {
