@@ -35,17 +35,84 @@ function extrairDadosOCR(texto: string): Documento {
 }
 
 const video = document.getElementById("video") as HTMLVideoElement;
+const overlay = document.getElementById("overlay") as HTMLCanvasElement;
 const btnCapture = document.getElementById("btnCapture") as HTMLButtonElement;
 const output = document.getElementById("output") as HTMLDivElement;
+
+const motionCanvas = document.createElement("canvas");
+const motionCtx = motionCanvas.getContext("2d");
+let previousFrame: ImageData | null = null;
 
 async function iniciarCamera() {
   try {
     const stream = await navigator.mediaDevices.getUserMedia({ video: true });
     video.srcObject = stream;
     await video.play();
-    output.innerHTML += `<p>Camera ativada com sucesso</p>`;
+    output.innerHTML += `<p>Câmera ativada com sucesso</p>`;
+
+    overlay.width = video.videoWidth;
+    overlay.height = video.videoHeight;
+    motionCanvas.width = video.videoWidth;
+    motionCanvas.height = video.videoHeight;
+
+    setInterval(detectarMovimento, 200);
   } catch (err) {
     output.innerHTML += `<p style='color:red;'>Erro ao acessar a câmera: ${err}</p>`;
+  }
+}
+
+function detectarMovimento() {
+  if (!motionCtx || !overlay) return;
+
+  motionCanvas.width = video.videoWidth;
+  motionCanvas.height = video.videoHeight;
+  overlay.width = video.videoWidth;
+  overlay.height = video.videoHeight;
+
+  motionCtx.drawImage(video, 0, 0, motionCanvas.width, motionCanvas.height);
+  const frame = motionCtx.getImageData(0, 0, motionCanvas.width, motionCanvas.height);
+
+  if (!previousFrame) {
+    previousFrame = frame;
+    return;
+  }
+
+  const overlayCtx = overlay.getContext("2d");
+  if (!overlayCtx) return;
+
+  const width = frame.width;
+  const height = frame.height;
+  let minX = width;
+  let maxX = 0;
+  let minY = height;
+  let maxY = 0;
+  let diffPixels = 0;
+
+  for (let i = 0; i < frame.data.length; i += 4) {
+    const r = Math.abs(frame.data[i] - previousFrame.data[i]);
+    const g = Math.abs(frame.data[i + 1] - previousFrame.data[i + 1]);
+    const b = Math.abs(frame.data[i + 2] - previousFrame.data[i + 2]);
+
+    const delta = (r + g + b) / 3;
+    if (delta > 20) {
+      const idx = i / 4;
+      const x = idx % width;
+      const y = Math.floor(idx / width);
+      minX = Math.min(minX, x);
+      maxX = Math.max(maxX, x);
+      minY = Math.min(minY, y);
+      maxY = Math.max(maxY, y);
+      diffPixels += 1;
+    }
+  }
+
+  previousFrame = frame;
+
+  overlayCtx.clearRect(0, 0, width, height);
+  if (diffPixels > 500) {
+    overlayCtx.strokeStyle = "red";
+    overlayCtx.lineWidth = 3;
+    overlayCtx.strokeRect(minX, minY, maxX - minX, maxY - minY);
   }
 }
 
