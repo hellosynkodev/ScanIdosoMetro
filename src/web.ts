@@ -1,6 +1,18 @@
-import Tesseract from "tesseract.js";
 import { Documento, ResultadoValidacao } from "./types";
 import { validarDocumento } from "./utils";
+
+let Tesseract: any = null;
+
+async function carregarTesseract() {
+  if (Tesseract) return;
+  try {
+    const mod = await import("tesseract.js");
+    Tesseract = mod.default;
+  } catch (err) {
+    console.error("Erro ao carregar Tesseract:", err);
+    throw err;
+  }
+}
 
 function calcularDataNascimentoOCR(texto: string): string | null {
   const regex = /([0-3]?\d\/[0-1]?\d\/[0-9]{4})/g;
@@ -39,16 +51,25 @@ const overlay = document.getElementById("overlay") as HTMLCanvasElement;
 const btnCapture = document.getElementById("btnCapture") as HTMLButtonElement;
 const output = document.getElementById("output") as HTMLDivElement;
 
+if (!video || !overlay || !btnCapture || !output) {
+  console.error("Elementos do DOM não encontrados");
+}
+
 const motionCanvas = document.createElement("canvas");
 const motionCtx = motionCanvas.getContext("2d");
 let previousFrame: ImageData | null = null;
 
 async function iniciarCamera() {
   try {
+    console.log("Iniciando câmera...");
     const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
+    console.log("Stream obtido:", stream);
+    
     video.srcObject = stream;
 
     video.addEventListener("loadedmetadata", () => {
+      console.log("Video metadata carregado:", video.videoWidth, "x", video.videoHeight);
+      
       overlay.width = video.videoWidth;
       overlay.height = video.videoHeight;
       motionCanvas.width = video.videoWidth;
@@ -57,18 +78,29 @@ async function iniciarCamera() {
       video.style.width = "100%";
       video.style.height = "auto";
 
+      if (output) output.innerHTML = `<p style="color:green;">✅ Câmera ativada com sucesso</p>`;
+      
       setInterval(detectarMovimento, 200);
     });
 
     await video.play();
-    output.innerHTML += `<p>Câmera ativada com sucesso</p>`;
+    console.log("Video play iniciado");
 
     window.addEventListener("resize", () => {
       overlay.width = video.videoWidth;
       overlay.height = video.videoHeight;
     });
-  } catch (err) {
-    output.innerHTML += `<p style='color:red;'>Erro ao acessar a câmera: ${err}</p>`;
+  } catch (err: any) {
+    console.error("Erro ao acessar câmera:", err);
+    if (output) {
+      output.innerHTML = `<p style='color:red;'>❌ Erro: ${err.message || err}</p>
+        <p style='color:#666;'>Possíveis soluções:</p>
+        <ul>
+          <li>Verifique permissões da câmera</li>
+          <li>Use HTTPS em produção</li>
+          <li>Teste em outro navegador</li>
+        </ul>`;
+    }
   }
 }
 
@@ -155,38 +187,61 @@ function aplicarPreProcessamento(canvas: HTMLCanvasElement): HTMLCanvasElement {
 }
 
 btnCapture.addEventListener("click", async () => {
-  const canvas = document.createElement("canvas");
-  canvas.width = video.videoWidth;
-  canvas.height = video.videoHeight;
-  const ctx = canvas.getContext("2d");
-  if (!ctx) return;
+  try {
+    console.log("Capturando imagem...");
+    
+    const canvas = document.createElement("canvas");
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) {
+      if (output) output.innerHTML = `<p style='color:red;'>Erro: não conseguiu contexto 2D</p>`;
+      return;
+    }
 
-  ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-  aplicarPreProcessamento(canvas);
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+    aplicarPreProcessamento(canvas);
 
-  output.innerHTML += `<p>Processando imagem (preprocessada)...</p>`;
-  const result = await Tesseract.recognize(canvas, "por", {
-    logger: (m) => {
-      if (m.status === "recognizing text") {
-        output.innerHTML = `<p>OCR: ${Math.round(m.progress * 100)}%</p>`;
+    if (output) output.innerHTML = `<p>Carregando OCR...</p>`;
+    await carregarTesseract();
+
+    if (output) output.innerHTML = `<p>Processando imagem...</p>`;
+    const result = await Tesseract.recognize(canvas, "por", {
+      logger: (m: any) => {
+        if (m.status === "recognizing text") {
+          if (output) output.innerHTML = `<p>OCR: ${Math.round(m.progress * 100)}%</p>`;
+        }
+      },
+    });
+
+    const text = result.data.text || "";
+    console.log("Texto OCR:", text);
+    
+    if (output) output.innerHTML = `<pre>${text}</pre>`;
+
+    const documento = extrairDadosOCR(text);
+    const validacao = validarDocumento(documento);
+
+    if (output) {
+      output.innerHTML += `<p><strong>Resultado:</strong> ${validacao.motivo}</p>`;
+      output.innerHTML += `<p>Idade: ${validacao.idade}, Validade: ${documento.validadeCartaoIdoso}</p>`;
+
+      if (validacao.idoso && validacao.cartaoOk) {
+        output.innerHTML += `<p style='color:green; font-weight:bold;'>✅ APROVADO</p>`;
+      } else {
+        output.innerHTML += `<p style='color:red; font-weight:bold;'>❌ REJEITADO</p>`;
       }
-    },
-  });
-
-  const text = result.data.text || "";
-  output.innerHTML += `<pre>${text}</pre>`;
-
-  const documento = extrairDadosOCR(text);
-  const validacao = validarDocumento(documento);
-
-  output.innerHTML += `<p><strong>Resultado:</strong> ${validacao.motivo}</p>`;
-  output.innerHTML += `<p>Idade: ${validacao.idade}, Validade: ${documento.validadeCartaoIdoso}</p>`;
-
-  if (validacao.idoso && validacao.cartaoOk) {
-    output.innerHTML += `<p style='color:green;'>APROVADO</p>`;
-  } else {
-    output.innerHTML += `<p style='color:red;'>REJEITADO</p>`;
+    }
+  } catch (err: any) {
+    console.error("Erro na captura:", err);
+    if (output) output.innerHTML = `<p style='color:red;'>Erro ao processar: ${err.message || err}</p>`;
   }
 });
 
-iniciarCamera();
+// Aguarda DOM estar carregado antes de iniciar câmera
+if (document.readyState === "loading") {
+  document.addEventListener("DOMContentLoaded", iniciarCamera);
+} else {
+  console.log("DOM já carregado, iniciando câmera...");
+  iniciarCamera();
+}

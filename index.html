@@ -53,11 +53,23 @@
         font-size: 0.95rem;
         line-height: 1.4;
       }
+      #output p {
+        margin: 4px 0;
+      }
       #output pre {
         background: #fff;
         padding: 10px;
         border: 1px solid #ddd;
         border-radius: 6px;
+        overflow-x: auto;
+        font-size: 0.85rem;
+      }
+      #output ul {
+        margin: 8px 0;
+        padding-left: 20px;
+      }
+      #output li {
+        margin: 4px 0;
       }
       @media (max-width: 520px) {
         h1 {
@@ -70,14 +82,18 @@
     </style>
   </head>
   <body>
-    <h1>Scan Idoso Metro (camera + OCR)</h1>
-    <div id="cameraContainer" style="position: relative; display: inline-block;">
-      <video id="video" autoplay muted playsinline></video>
-      <canvas id="overlay" style="position:absolute; left:0; top:0; width:100%; height:100%; pointer-events:none;"></canvas>
+    <div class="container">
+      <h1>🔍 Scan Idoso Metro</h1>
+      <p>Câmera + OCR para validação de idade e cartão de idoso</p>
+      
+      <div id="cameraContainer" style="position: relative; display: block;">
+        <video id="video" autoplay muted playsinline></video>
+        <canvas id="overlay" style="position:absolute; left:0; top:0; width:100%; height:100%; pointer-events:none;"></canvas>
+      </div>
+      
+      <button id="btnCapture">📸 Capturar e verificar</button>
+      <div id="output"></div>
     </div>
-    <br />
-    <button id="btnCapture">Capturar e verificar cartão</button>
-    <div id="output"></div>
     <script src="dist/web.js"></script>
   </body>
 </html>
